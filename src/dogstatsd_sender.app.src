@@ -1,6 +1,6 @@
 {application, dogstatsd_sender,
- [{description, "An OTP application"},
-  {vsn, "0.1.0"},
+ [{description, "A simple client for dogstatsd"},
+  {vsn, "0.0.1"},
   {registered, []},
   {mod, { dogstatsd_sender_app, []}},
   {applications,
@@ -11,6 +11,6 @@
   {modules, []},
 
   {maintainers, []},
-  {licenses, ["Apache 2.0"]},
+  {licenses, ["MIT"]},
   {links, []}
  ]}.

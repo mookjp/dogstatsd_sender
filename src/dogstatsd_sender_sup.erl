@@ -1,35 +1,35 @@
-%%%-------------------------------------------------------------------
-%% @doc dogstatsd_sender top level supervisor.
-%% @end
-%%%-------------------------------------------------------------------
-
 -module(dogstatsd_sender_sup).
 
 -behaviour(supervisor).
 
 %% API
--export([start_link/0]).
+-export([
+  start_link/0,
+  child_spec/2
+]).
 
 %% Supervisor callbacks
--export([init/1]).
+-export([
+  init/1
+]).
 
--define(SERVER, ?MODULE).
-
-%%====================================================================
-%% API functions
-%%====================================================================
-
+%%%===================================================================
+%%% API functions
+%%%===================================================================
 start_link() ->
-    supervisor:start_link({local, ?SERVER}, ?MODULE, []).
+  supervisor:start_link(?MODULE, []).
 
-%%====================================================================
-%% Supervisor callbacks
-%%====================================================================
+child_spec(Id, MFA) ->
+  #{
+    id => Id,
+    start => MFA,
+    restart => permanent,
+    shutdown => brutal_kill,
+    type => worker
+  }.
 
-%% Child :: {Id,StartFunc,Restart,Shutdown,Type,Modules}
+%%%===================================================================
+%%% Supervisor callbacks
+%%%===================================================================
 init([]) ->
-    {ok, { {one_for_all, 0, 1}, []} }.
-
-%%====================================================================
-%% Internal functions
-%%====================================================================
+  {ok, {#{strategy => one_for_one, intensity => 1000000, period => 1}, []}}.
