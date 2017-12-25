@@ -78,15 +78,42 @@ dogstatsd_sender supports to send some basic metrics via `dogstatsd_sernder:regi
 
 
 You give `metrics_list` key in your parameter map then dogstatsd_sender periodically collect the metrics.
+`common_tag_list` key can be set to send metrics with common process info; `pid`, `mfa`, `node`.
+
+
 The interval to collect metrics is configured by `metrics_interval_ms` in application environments.
 
+
+For example, you can set up metrics collector of dogstatsd_sender. Once you register a pid to it, it will automatically send metrics with tags:
+
 ```erlang
-dogstatsd_sender:register(#{ metrics_list => [message_queue_len], tags => [{label, something}]}).
+dogstatsd_sender:register(Pid, #{
+  metrics_list => [message_queue_len],
+  common_tag_list => [ pid, mfa, node ]
+  tags => [{label, something}]
+}).
 ```
 
 This is experimental function for now. Supported metrics in only:
 
 * `message_queue_len`
+
+
+If you set common_tag_list, it will add tags supported automatically. Supported tags are below:
+
+* `pid`
+    * pid() of Erlang. e.g. `<0.100.0>`
+* `mfa`
+    * MFA of Erlang. e.g. `erl_eval/do_apply/6`
+* `node`
+    * node name. e.g. `node_name@host_name`
+
+
+By above example, it will send metrics in this format to dogstatsd:
+
+```
+dogstatsd_sender.message_queue_len:10|g|#pid:<0.100.0>,mfa:erl_eval/do_apply/6,node:nodename@hostname,label:something
+```
 
 ## Modules
 
