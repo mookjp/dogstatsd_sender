@@ -13,14 +13,16 @@
   should_send_metrics_when_params_are_valid/1,
   should_send_metrics_without_tags_and_common_tags/1,
   should_throw_metrics_list_validation_exception/1,
-  should_throw_common_tag_list_validation_exception/1
+  should_throw_common_tag_list_validation_exception/1,
+  should_not_send_metrics_after_unregister/1
 ]).
 
 all() -> [
   should_send_metrics_when_params_are_valid,
   should_send_metrics_without_tags_and_common_tags,
   should_throw_metrics_list_validation_exception,
-  should_throw_common_tag_list_validation_exception
+  should_throw_common_tag_list_validation_exception,
+  should_not_send_metrics_after_unregister
 ].
 
 init_per_suite(Config) ->
@@ -93,6 +95,48 @@ should_send_metrics_without_tags_and_common_tags(_Config) ->
     ct:fail("could not get registered msg.")
   end,
   {comment, "it sends metrics to dogstatsd without tags and common tags."}.
+
+should_not_send_metrics_after_unregister(_Config) ->
+  Params = #{
+    metrics_list => [
+      message_queue_len
+    ],
+    common_tag_list => [
+      pid,
+      mfa
+    ],
+    tags => [
+      {name, test},
+      {type, test}
+    ]
+  },
+  dogstatsd_sender:register(self(), Params),
+  receive
+    {dogstatsd_manager, _MngPid, {registered, #{ pid := Self, params := ExpectedParams }}} when Self =:= self() ->
+      receive Msg ->
+        ct:pal("msg: ~p", [Msg]),
+        {udp, _Port, _Address, _Portnum, Packet} = Msg,
+        {match, _} = re:run(Packet, "dogstatsd_sender\.message_queue_len:0|g|#pid:.+\,mfa:dogstatsd_sender_integration_SUITE/should_send_metrics_when_params_are_valid/1,name:test,type:test"),
+        dogstatsd_sender:unregister(self()),
+        receive
+          {dogstatsd_manager, _MngPid, {unregistered, #{ pid := Self }}} when Self =:= self() ->
+            receive
+              Unexpected ->
+                ct:pal("unexpected msg after unregister: ~p", [Unexpected]),
+                ct:fail(unexpected_msg_after_unregister)
+            after 1000 ->
+              ok
+            end
+        after 1000 ->
+          ct:fail("could not get unregistered msg.")
+        end
+      after 1000 ->
+        ct:fail("could not get any msg.")
+      end
+  after 1000 ->
+    ct:fail("could not get registered msg.")
+  end,
+  {comment, "it unregisters not to send metrics to datadog."}.
 
 should_throw_metrics_list_validation_exception(_Config) ->
   Params = #{
