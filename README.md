@@ -14,6 +14,7 @@ A simple client to [dogstatsd](https://docs.datadoghq.com/guides/dogstatsd/); ag
 - [Usage](#usage)
   - [Send your own metrics](#send-your-own-metrics)
   - [Register process to collect basic metrics; experimental function](#register-process-to-collect-basic-metrics-experimental-function)
+    - [Unregister](#unregister)
 - [Modules](#modules)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -96,8 +97,16 @@ dogstatsd_sender:register(Pid, #{
   metrics_list => [message_queue_len],
   common_tag_list => [ pid, mfa, node ]
   tags => [{label, something}]
-}).
+}),
+
+receive 
+  {dogstatsd_manager, _MngPid, {registered, #{ pid := _Pid, params := _RegisteredParams }}} ->
+    ok
+end.
 ```
+
+`dogstatsd_sender:register` is async. You will get a reply message with above format.
+
 
 This is experimental function for now. Supported metrics in only:
 
@@ -119,6 +128,21 @@ By above example, it will send metrics in this format to dogstatsd:
 ```
 dogstatsd_sender.message_queue_len:10|g|#pid:<0.100.0>,mfa:erl_eval/do_apply/6,node:nodename@hostname,label:something
 ```
+
+#### Unregister
+
+To unregister the pid you registered, call this:
+
+```erlang
+dogstatsd_sender:unregister(Pid),
+
+receive 
+  {dogstatsd_manager, _MngPid, {unregistered, #{ pid := _Pid }}} ->
+    ok
+end.
+```
+
+`dogstatsd_sender:register` is also async. You will get a reply message with above format.
 
 ## Modules
 
