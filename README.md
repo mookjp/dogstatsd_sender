@@ -123,7 +123,7 @@ If you set common_tag_list, it will add tags supported automatically. Supported 
     * node name. e.g. `node_name@host_name`
 
 
-By above example, it will send metrics in this format to dogstatsd:
+Above example will send metrics in this format to dogstatsd:
 
 ```
 dogstatsd_sender.message_queue_len:10|g|#pid:<0.100.0>,mfa:erl_eval/do_apply/6,node:nodename@hostname,label:something

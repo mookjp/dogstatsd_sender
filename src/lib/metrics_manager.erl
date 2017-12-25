@@ -5,7 +5,7 @@
 %% API
 -export([
   start_link/1,
-  register/3,
+  register/2,
   unregister/2
 ]).
 
@@ -26,7 +26,8 @@
 -type collector_param() :: #{
   metrics_list := [ message_queue_len ], %% message_queue_len is only supported currently
   common_tag_list := [ pid | mfa | node ],
-  tags := [{ term(), term() }]
+  tags := [{ term(), term() }],
+  from := pid()
 }.
 -type target() :: { pid(), collector_param() }.
 -type register_param() :: #{ from := pid(), target := target() }.
@@ -57,16 +58,16 @@
 start_link(IntervalMs) ->
   gen_server:start_link({local, ?MODULE}, ?MODULE, [IntervalMs], []).
 
--spec register(pid(), pid(), collector_param()) -> ok.
-register(From, Pid, #{ common_tag_list := CommonTagList, tags := Tags } = Params)
-    when is_pid(Pid), is_list(CommonTagList), is_list(Tags) ->
+-spec register(pid(), collector_param()) -> ok.
+register(Pid, #{ common_tag_list := CommonTagList, tags := Tags, from := From } = Params)
+    when is_pid(Pid), is_pid(From), is_list(CommonTagList), is_list(Tags) ->
   case (catch validate_params(Params)) of
     true ->
       gen_server:cast(?MODULE, {register, #{ from => From, target => {Pid, Params} }});
     _ ->
       throw(invalid_params)
   end;
-register(From, Pid, Params) ->
+register(Pid, Params) ->
   WithEmptyCommonTags = case maps:is_key(common_tag_list, Params) of
                           true ->
                             Params;
@@ -79,7 +80,7 @@ register(From, Pid, Params) ->
     false ->
       WithEmptyCommonTags#{ tags => [] }
   end,
-  metrics_manager:register(From, Pid, WithEmptyTags).
+  metrics_manager:register(Pid, WithEmptyTags).
 
 -spec unregister(pid(), pid()) -> ok.
 unregister(From, Pid) ->
@@ -114,19 +115,24 @@ handle_call(_Request, _From, State) ->
   {stop, Reason :: term(), NewState :: #state{}}).
 handle_cast({register, #{ from := From, target := {Pid, Params} }}, State) ->
   UpdatedTargets = [ {Pid, Params} | State#state.targets ],
-  From ! {dogstatsd_manager, self(), {registered, #{ pid => Pid, params => Params }}},
+  From ! {dogstatsd_manager, self(), {registered, #{ pid => Pid, params => maps:remove(from, Params) }}},
   {noreply, State#state{ targets = UpdatedTargets }};
 handle_cast({unregister, #{ from := From, target := Pid }}, State) ->
   UpdatedTargets = proplists:delete(Pid, State#state.targets),
   From ! {dogstatsd_manager, self(), {unregistered, #{ pid => Pid }}},
   {noreply, State#state{ targets = UpdatedTargets }};
-handle_cast({collect, {Pid, #{ metrics_list := MetricsList, common_tag_list := CommonTagList, tags := Tags } = _Params}}, State) ->
-  lists:foreach(fun(Metrics) ->
-                  Value = collect(Pid, Metrics),
-                  CommonTags = collect_tags(Pid, CommonTagList),
-                  MergedTags = merge_tags(Tags, CommonTags),
-                  send(Metrics, Value, MergedTags)
-                end, MetricsList),
+handle_cast({collect, {Pid, #{ metrics_list := MetricsList, common_tag_list := CommonTagList, tags := Tags, from := From } = _Params}}, State) ->
+  case is_process_alive(Pid) of
+    true ->
+      lists:foreach(fun(Metrics) ->
+        Value = collect(Pid, Metrics),
+        CommonTags = collect_tags(Pid, CommonTagList),
+        MergedTags = merge_tags(Tags, CommonTags),
+        send(Metrics, Value, MergedTags)
+                    end, MetricsList);
+    false ->
+      gen_server:cast(?MODULE, {unregister, #{ from => From, target => Pid }})
+  end,
   {noreply, State};
 handle_cast(_Request, State) ->
   {noreply, State}.
