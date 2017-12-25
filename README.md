@@ -50,7 +50,12 @@ and also add this module as an application to your .src file.
 ### Send your own metrics
 
 ```erlang
-dogstatsd_sender:send(#{ metrics => "my_metrics.point", type => g, value => 1, tags => [{label, sometihng}]}).
+dogstatsd_sender:send(#{
+  metrics => "my_metrics.point",
+  type => g,
+  value => 1,
+  tags => [{label, sometihng}]
+}).
 ```
 
 Parameters for `dogstatsd_sender:send/1` supports [Dogststsd's metrics format](https://docs.datadoghq.com/guides/dogstatsd/#datagram-format).

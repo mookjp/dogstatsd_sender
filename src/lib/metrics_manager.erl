@@ -5,8 +5,8 @@
 %% API
 -export([
   start_link/1,
-  register/2,
-  unregister/1
+  register/3,
+  unregister/2
 ]).
 
 %% gen_server callbacks
@@ -29,6 +29,8 @@
   tags := [{ term(), term() }]
 }.
 -type target() :: { pid(), collector_param() }.
+-type register_param() :: #{ from := pid(), target := target() }.
+-type unregister_param() :: #{ from := pid(), target := pid() }.
 
 -record(state, {
   targets :: [ target() ],
@@ -55,16 +57,16 @@
 start_link(IntervalMs) ->
   gen_server:start_link({local, ?MODULE}, ?MODULE, [IntervalMs], []).
 
--spec register(pid(), collector_param()) -> ok.
-register(Pid, #{ common_tag_list := CommonTagList, tags := Tags } = Params)
+-spec register(pid(), pid(), collector_param()) -> ok.
+register(From, Pid, #{ common_tag_list := CommonTagList, tags := Tags } = Params)
     when is_pid(Pid), is_list(CommonTagList), is_list(Tags) ->
   case (catch validate_params(Params)) of
     true ->
-      gen_server:cast(?MODULE, {register, {Pid, Params}});
+      gen_server:cast(?MODULE, {register, #{ from => From, target => {Pid, Params} }});
     _ ->
       throw(invalid_params)
   end;
-register(Pid, Params) ->
+register(From, Pid, Params) ->
   WithEmptyCommonTags = case maps:is_key(common_tag_list, Params) of
                           true ->
                             Params;
@@ -77,10 +79,11 @@ register(Pid, Params) ->
     false ->
       WithEmptyCommonTags#{ tags => [] }
   end,
-  metrics_manager:register(Pid, WithEmptyTags).
+  metrics_manager:register(From, Pid, WithEmptyTags).
 
-unregister(Pid) ->
-  gen_server:cast(?MODULE, {unregister, Pid}).
+-spec unregister(pid(), pid()) -> ok.
+unregister(From, Pid) ->
+  gen_server:cast(?MODULE, {unregister, #{ from => From, target => Pid }}).
 
 
 %%%===================================================================
@@ -105,15 +108,17 @@ init([IntervalMs]) ->
 handle_call(_Request, _From, State) ->
   {reply, ok, State}.
 
--spec(handle_cast(Request :: {register, target()} | {unregister, pid()} | {collect, target()} | term(), State :: #state{}) ->
+-spec(handle_cast(Request :: {register, register_param()} | {unregister, unregister_param()} | {collect, target()} | term(), State :: #state{}) ->
   {noreply, NewState :: #state{}} |
   {noreply, NewState :: #state{}, timeout() | hibernate} |
   {stop, Reason :: term(), NewState :: #state{}}).
-handle_cast({register, {Pid, Params}}, State) ->
+handle_cast({register, #{ from := From, target := {Pid, Params} }}, State) ->
   UpdatedTargets = [ {Pid, Params} | State#state.targets ],
+  From ! {dogstatsd_manager, self(), {registered, #{ pid => Pid, params => Params }}},
   {noreply, State#state{ targets = UpdatedTargets }};
-handle_cast({unregister, Pid}, State) ->
+handle_cast({unregister, #{ from := From, target := Pid }}, State) ->
   UpdatedTargets = proplists:delete(Pid, State#state.targets),
+  From ! {dogstatsd_manager, self(), {unregistered, #{ pid => Pid }}},
   {noreply, State#state{ targets = UpdatedTargets }};
 handle_cast({collect, {Pid, #{ metrics_list := MetricsList, common_tag_list := CommonTagList, tags := Tags } = _Params}}, State) ->
   lists:foreach(fun(Metrics) ->

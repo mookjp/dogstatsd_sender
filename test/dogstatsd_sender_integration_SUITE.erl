@@ -58,12 +58,16 @@ should_send_metrics_when_params_are_valid(_Config) ->
   },
   dogstatsd_sender:register(self(), Params),
   receive
-    Msg ->
-      ct:pal("msg: ~p", [Msg]),
-      {udp, _Port, _Address, _Portnum, Packet} = Msg,
-      {match, _} = re:run(Packet, "dogstatsd_sender\.message_queue_len:0|g|#pid:.+\,mfa:dogstatsd_sender_integration_SUITE/should_send_metrics_when_params_are_valid/1,name:test,type:test")
+    {dogstatsd_manager, _MngPid, {registered, #{ pid := Self, params := Params }}} when Self =:= self() ->
+      receive Msg ->
+        ct:pal("msg: ~p", [Msg]),
+        {udp, _Port, _Address, _Portnum, Packet} = Msg,
+        {match, _} = re:run(Packet, "dogstatsd_sender\.message_queue_len:0|g|#pid:.+\,mfa:dogstatsd_sender_integration_SUITE/should_send_metrics_when_params_are_valid/1,name:test,type:test")
+      after 1000 ->
+        ct:fail("could not get any msg.")
+      end
   after 1000 ->
-    ct:fail("could not get any msg.")
+    ct:fail("could not get registered msg.")
   end,
   {comment, "it sends metrics to dogstatsd."}.
 
@@ -74,13 +78,19 @@ should_send_metrics_without_tags_and_common_tags(_Config) ->
     ]
   },
   dogstatsd_sender:register(self(), Params),
+  ExpectedParams = Params#{ tags => [], common_tag_list => [] },
   receive
-    Msg ->
-      ct:pal("msg: ~p", [Msg]),
-      {udp, _Port, _Address, _Portnum, Packet} = Msg,
-      <<"dogstatsd_sender.message_queue_len:0|g">> = Packet
+    {dogstatsd_manager, _MngPid, {registered, #{ pid := Self, params := ExpectedParams }}} when Self =:= self() ->
+      receive
+        Msg ->
+          ct:pal("msg: ~p", [Msg]),
+          {udp, _Port, _Address, _Portnum, Packet} = Msg,
+          <<"dogstatsd_sender.message_queue_len:0|g">> = Packet
+      after 1000 ->
+        ct:fail("could not get any msg.")
+      end
   after 1000 ->
-    ct:fail("could not get any msg.")
+    ct:fail("could not get registered msg.")
   end,
   {comment, "it sends metrics to dogstatsd without tags and common tags."}.
 
