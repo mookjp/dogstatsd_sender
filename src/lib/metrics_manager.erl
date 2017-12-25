@@ -46,7 +46,8 @@
 -define(SUPPORTED_COMMON_TAGS, [
   pid,
   mfa,
-  node
+  node,
+  registered_name
 ]).
 
 %%%===================================================================

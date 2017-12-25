@@ -7,7 +7,8 @@
   %% For common tags
   pid/1,
   mfa/1,
-  node/1
+  node/1,
+  registered_name/1
 ]).
 
 -spec message_queue_len(pid()) -> non_neg_integer().
@@ -20,7 +21,8 @@ message_queue_len(Pid) ->
 
 -spec pid(pid()) -> string().
 pid(Pid) ->
-  erlang:pid_to_list(Pid).
+  PidStr = erlang:pid_to_list(Pid),
+  re:replace(PidStr, "<|>", "", [global, {return, list}]).
 
 -spec mfa(pid()) -> string().
 mfa(Pid) ->
@@ -29,4 +31,9 @@ mfa(Pid) ->
 
 -spec node(pid()) -> string().
 node(Pid) ->
-  atom_to_list(erlang:node(Pid)).
+  NodeStr = atom_to_list(erlang:node(Pid)),
+  re:replace(NodeStr, "@", "_", [global, {return, list}]).
+
+-spec registered_name(pid()) -> string().
+registered_name(Pid) ->
+  atom_to_list(proplists:get_value(registered_name, erlang:process_info(Pid))).

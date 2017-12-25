@@ -62,7 +62,9 @@ should_send_metrics_when_params_are_valid(_Config) ->
     ],
     common_tag_list => [
       pid,
-      mfa
+      mfa,
+      node,
+      registered_name
     ],
     tags => [
       {name, test},
@@ -75,7 +77,7 @@ should_send_metrics_when_params_are_valid(_Config) ->
       receive Msg ->
         ct:pal("msg: ~p", [Msg]),
         {udp, _Port, _Address, _Portnum, Packet} = Msg,
-        {match, _} = re:run(Packet, "dogstatsd_sender\.message_queue_len:0|g|#pid:.+\,mfa:dogstatsd_sender_integration_SUITE/should_send_metrics_when_params_are_valid/1,name:test,type:test")
+        {match, _} = re:run(Packet, "dogstatsd_sender\.message_queue_len:0|g|#pid:.+\,mfa:dogstatsd_sender_integration_SUITE/should_send_metrics_when_params_are_valid/1,node:.+,registered_name:.+,name:test,type:test")
       after 1000 ->
         ct:fail("could not get any msg.")
       end
