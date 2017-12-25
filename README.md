@@ -44,7 +44,7 @@ and also add this module as an application to your .src file.
   %% e.g. #{ metrics => "my_metrics" } is sended as "dogstatsd_sender.my_metrics"
   {metrics_prefix_base, "dogstatsd_sender"},
   %% Interval to send metrics when you register your pid via dogstatsd_sender:register/2
-  {metrics_interval_ms, 10000
+  {metrics_interval_ms, 10000}
 ]
 ```
 
