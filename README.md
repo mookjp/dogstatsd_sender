@@ -50,8 +50,27 @@ and also add this module as an application to your .src file.
 ### Send your own metrics
 
 ```erlang
-dogstatsd_sender:send(#{ metrics => "my_metrics.point", value => 1, tags => [{label, sometihng}]}).
+dogstatsd_sender:send(#{ metrics => "my_metrics.point", type => g, value => 1, tags => [{label, sometihng}]}).
 ```
+
+Parameters for `dogstatsd_sender:send/1` supports [Dogststsd's metrics format](https://docs.datadoghq.com/guides/dogstatsd/#datagram-format).
+
+* `metrics`
+    * `metric.name` on [Dogstatsd docs](https://docs.datadoghq.com/guides/dogstatsd/#datagram-format)
+* `type`
+    * `g`, `c`, `ms`, `h`, `s` as atom
+* `tags`
+    * proplists with tag label as atom and tag value as atom also
+
+
+By sending metrics with above example, it will send this to dogstatsd:
+
+```
+dogstatsd_sender.my_metrics.point:1|g|#label:something
+```
+
+Notice that dogstatsd_sender has configuration for the prefix of metrics name. Default prefix is `dogstatsd_sender` and it added as a prefix.
+You can [change this prefix by your application configuration](#configuration-parameters).
 
 ### Register process to collect basic metrics; experimental function
 
