@@ -95,7 +95,7 @@ For example, you can set up metrics collector of dogstatsd_sender. Once you regi
 ```erlang
 dogstatsd_sender:register(Pid, #{
   metrics_list => [message_queue_len],
-  common_tag_list => [ pid, mfa, node ]
+  common_tag_list => [ pid, mfa, node ],
   tags => [{label, something}]
 }),
 
