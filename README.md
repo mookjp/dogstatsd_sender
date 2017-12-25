@@ -3,7 +3,7 @@ dogstatsd_sender
 
 <img src="https://circleci.com/gh/mookjp/dogstatsd_sender/tree/master.svg?style=shield&circle-token=de845802556fbe80fdd67b01efdaaf238478d500">
 
-A simple client to dogstatsd plus periodical metrics collector.
+A simple client to [dogstatsd](https://docs.datadoghq.com/guides/dogstatsd/); agent of [Datadog](https://www.datadoghq.com/), plus periodical metrics collector.
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
