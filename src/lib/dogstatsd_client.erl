@@ -21,7 +21,7 @@
 -type dogstatsd_client_req() :: #{
   metrics := term(),
   value := term(),
-  type := g, %% g is only supported currently
+  type := g | c | ms | h | s,
   tags := [{ term(), term() }]
 }.
 
@@ -47,7 +47,7 @@ start_link(Address, Port, Prefix) ->
   gen_server:start_link({local, ?MODULE}, ?MODULE, [Address, Port, Prefix], []).
 
 -spec send(dogstatsd_client_req()) -> ok.
-send(Params) ->
+send(#{type := Type, tags := Tags} = Params) when is_atom(Type) and is_list(Tags) ->
   gen_server:cast(?MODULE, {send, Params}).
 
 %%%===================================================================
