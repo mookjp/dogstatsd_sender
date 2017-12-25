@@ -5,6 +5,8 @@ dogstatsd_sender
 
 A simple client to [dogstatsd](https://docs.datadoghq.com/guides/dogstatsd/); agent of [Datadog](https://www.datadoghq.com/), plus periodical metrics collector.
 
+<img src="doc/img/dd_animated.gif">
+
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 ## Contents
@@ -120,7 +122,9 @@ If you set common_tag_list, it will add tags supported automatically. Supported 
 * `mfa`
     * MFA of Erlang. e.g. `erl_eval/do_apply/6`
 * `node`
-    * node name. e.g. `node_name@host_name`
+    * Node name. e.g. `node_name@host_name`
+* `registered_name`
+    * Registered name
 
 
 Above example will send metrics in this format to dogstatsd:
