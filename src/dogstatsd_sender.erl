@@ -9,6 +9,6 @@
 register(Pid, Params) ->
   metrics_manager:register(Pid, Params).
 
--spec send(metrics_manager:collector_param()) -> ok.
+-spec send(dogstatsd_client:dogstatsd_client_req()) -> ok.
 send(Params) ->
   dogstatsd_client:send(Params).

@@ -1,0 +1,13 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: synlay/erlang:20.1
+    steps:
+      - checkout
+      - run:
+          name: dialyzer
+          command: rebar3 dialyzer
+      - run:
+          name: test
+          command: rebar3 ct --verbose
