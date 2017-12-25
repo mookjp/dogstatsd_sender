@@ -25,6 +25,7 @@
 
 -type collector_param() :: #{
   metrics_list := [ message_queue_len ], %% message_queue_len is only supported currently
+  common_tag_list := [ pid | mfa | node ],
   tags := [{ term(), term() }]
 }.
 -type target() :: { pid(), collector_param() }.
@@ -39,6 +40,12 @@
   message_queue_len
 ]).
 
+-define(SUPPORTED_COMMON_TAGS, [
+  pid,
+  mfa,
+  node
+]).
+
 %%%===================================================================
 %%% API
 %%%===================================================================
@@ -49,13 +56,28 @@ start_link(IntervalMs) ->
   gen_server:start_link({local, ?MODULE}, ?MODULE, [IntervalMs], []).
 
 -spec register(pid(), collector_param()) -> ok.
-register(Pid, Params) when is_pid(Pid) ->
+register(Pid, #{ common_tag_list := CommonTagList, tags := Tags } = Params)
+    when is_pid(Pid), is_list(CommonTagList), is_list(Tags) ->
   case (catch validate_params(Params)) of
     true ->
       gen_server:cast(?MODULE, {register, {Pid, Params}});
     _ ->
       throw(invalid_params)
-  end.
+  end;
+register(Pid, Params) ->
+  WithEmptyCommonTags = case maps:is_key(common_tag_list, Params) of
+                          true ->
+                            Params;
+                          false ->
+                            Params#{ common_tag_list => [] }
+                        end,
+  WithEmptyTags = case maps:is_key(tags, WithEmptyCommonTags) of
+    true ->
+      WithEmptyCommonTags;
+    false ->
+      WithEmptyCommonTags#{ tags => [] }
+  end,
+  metrics_manager:register(Pid, WithEmptyTags).
 
 unregister(Pid) ->
   gen_server:cast(?MODULE, {unregister, Pid}).
@@ -93,16 +115,12 @@ handle_cast({register, {Pid, Params}}, State) ->
 handle_cast({unregister, Pid}, State) ->
   UpdatedTargets = proplists:delete(Pid, State#state.targets),
   {noreply, State#state{ targets = UpdatedTargets }};
-handle_cast({collect, {Pid, #{ metrics_list := MetricsList, tags := Tags } = _Params}}, State) ->
+handle_cast({collect, {Pid, #{ metrics_list := MetricsList, common_tag_list := CommonTagList, tags := Tags } = _Params}}, State) ->
   lists:foreach(fun(Metrics) ->
                   Value = collect(Pid, Metrics),
-                  send(Metrics, Value, Tags)
-                end, MetricsList),
-  {noreply, State};
-handle_cast({collect, {Pid, #{ metrics_list := MetricsList } = _Params}}, State) ->
-  lists:foreach(fun(Metrics) ->
-                  Value = collect(Pid, Metrics),
-                  send(Metrics, Value)
+                  CommonTags = collect_tags(Pid, CommonTagList),
+                  MergedTags = merge_tags(Tags, CommonTags),
+                  send(Metrics, Value, MergedTags)
                 end, MetricsList),
   {noreply, State};
 handle_cast(_Request, State) ->
@@ -141,6 +159,25 @@ code_change(_OldVsn, State, _Extra) ->
 collect(Pid, Metrics) ->
   erlang:apply(metrics_collector, Metrics, [Pid]).
 
+collect_tags(Pid, CommonTagList) ->
+  lists:map(fun(Label) ->
+              TagValue = collect_tag(Pid, Label),
+              {Label, TagValue}
+            end, CommonTagList).
+
+collect_tag(Pid, Label) ->
+  erlang:apply(metrics_collector, Label, [Pid]).
+
+merge_tags(Tags, CommonTags) ->
+  lists:foldr(fun({Label, Value}, CurrentTags) ->
+                case proplists:get_value(Label, Tags) of
+                  undefined ->
+                    [{Label, Value} | CurrentTags];
+                  _ ->
+                    CurrentTags
+                end
+              end, Tags, CommonTags).
+
 -spec send(atom(), term(), [{ atom(), term() }]) -> ok.
 send(Metrics, Value, Tags) ->
   dogstatsd_client:send(#{
@@ -150,18 +187,15 @@ send(Metrics, Value, Tags) ->
     tags => Tags
   }).
 
--spec send(atom(), term()) -> ok.
-send(Metrics, Value) ->
-  dogstatsd_client:send(#{
-    metrics => Metrics,
-    value => Value,
-    type => g,
-    tags => []
-  }).
-
-validate_params(#{ metrics_list := MetricsList } = _Params) ->
+validate_params(#{ metrics_list := MetricsList, common_tag_list := CommonTagList } = _Params) ->
   lists:all(fun(Metrics) ->
               lists:any(fun(Supported) ->
                           Metrics =:= Supported
                         end, ?SUPPORTED_METRICS)
-            end, MetricsList).
+            end, MetricsList)
+  andalso
+    lists:all(fun(CommonTag) ->
+      lists:any(fun(Supported) ->
+        CommonTag =:= Supported
+                end, ?SUPPORTED_COMMON_TAGS)
+              end, CommonTagList).
