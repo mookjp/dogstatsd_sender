@@ -115,7 +115,7 @@ handle_call(_Request, _From, State) ->
   {noreply, NewState :: #state{}} |
   {noreply, NewState :: #state{}, timeout() | hibernate} |
   {stop, Reason :: term(), NewState :: #state{}}).
-handle_info(Info, State) ->
+handle_info(_Info, State) ->
   {noreply, State}.
 
 -spec(code_change(OldVsn :: term() | {down, term()}, State :: #state{},
