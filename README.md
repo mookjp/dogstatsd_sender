@@ -96,7 +96,10 @@ For example, you can set up metrics collector of dogstatsd_sender. Once you regi
 
 ```erlang
 dogstatsd_sender:register(Pid, #{
-  metrics_list => [message_queue_len],
+  metrics_list => [
+    message_queue_len,
+    'garbage_collection.minor_gcs'
+  ],
   common_tag_list => [ pid, mfa, node ],
   tags => [{label, something}]
 }),
@@ -113,6 +116,7 @@ end.
 This is experimental function for now. Supported metrics in only:
 
 * `message_queue_len`
+* `garbage_collection.minor_gcs`
 
 
 If you set common_tag_list, it will add tags supported automatically. Supported tags are below:
