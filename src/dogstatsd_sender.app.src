@@ -1,6 +1,6 @@
 {application, dogstatsd_sender,
  [{description, "A simple client for dogstatsd"},
-  {vsn, "0.0.1"},
+  {vsn, "0.0.3"},
   {registered, []},
   {mod, { dogstatsd_sender_app, []}},
   {applications,
