@@ -58,7 +58,8 @@ end_per_testcase(_, Config) ->
 should_send_metrics_when_params_are_valid(_Config) ->
   Params = #{
     metrics_list => [
-      message_queue_len
+      message_queue_len,
+      'garbage_collection.minor_gcs'
     ],
     common_tag_list => [
       pid,
@@ -74,10 +75,19 @@ should_send_metrics_when_params_are_valid(_Config) ->
   dogstatsd_sender:register(self(), Params),
   receive
     {dogstatsd_manager, _MngPid, {registered, #{ pid := Self, params := Params }}} when Self =:= self() ->
+      %% First, metrics of message_queue_len
       receive Msg ->
         ct:pal("msg: ~p", [Msg]),
         {udp, _Port, _Address, _Portnum, Packet} = Msg,
-        {match, _} = re:run(Packet, "dogstatsd_sender\.message_queue_len:0|g|#pid:.+\,mfa:dogstatsd_sender_integration_SUITE/should_send_metrics_when_params_are_valid/1,node:.+,registered_name:.+,name:test,type:test")
+        {match, _} = re:run(Packet, "dogstatsd_sender\.message_queue_len:0|g|#pid:.+\,mfa:dogstatsd_sender_integration_SUITE/should_send_metrics_when_params_are_valid/1,node:.+,registered_name:.+,name:test,type:test"),
+        %% Second, metrics of garbage_collection.minor_gcs
+        receive Msg2 ->
+          ct:pal("second msg: ~p", [Msg2]),
+          {udp, _Port, _Address, _Portnum, Packet2} = Msg2,
+          {match, _} = re:run(Packet2, "dogstatsd_sender\.garbage_collection.minor_gcs:.+?|g|#pid:.+\,mfa:dogstatsd_sender_integration_SUITE/should_send_metrics_when_params_are_valid/1,node:.+,registered_name:.+,name:test,type:test")
+        after 1000 ->
+          ct:fail("could not get any msg.")
+        end
       after 1000 ->
         ct:fail("could not get any msg.")
       end
