@@ -8,7 +8,8 @@
   pid/1,
   mfa/1,
   node/1,
-  registered_name/1
+  registered_name/1,
+  minor_gcs/1
 ]).
 
 -spec message_queue_len(pid()) -> non_neg_integer().
@@ -37,3 +38,8 @@ node(Pid) ->
 -spec registered_name(pid()) -> string().
 registered_name(Pid) ->
   atom_to_list(proplists:get_value(registered_name, erlang:process_info(Pid))).
+
+-spec minor_gcs(pid()) -> non_neg_integer().
+minor_gcs(Pid) ->
+  GCProps = proplists:get_value(garbage_collection, erlang:process_info(Pid)),
+  proplists:get_value(minor_gcs, GCProps).

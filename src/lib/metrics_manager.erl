@@ -40,7 +40,8 @@
 }).
 
 -define(SUPPORTED_METRICS, [
-  message_queue_len
+  message_queue_len,
+  'garbage_collection.minor_gcs'
 ]).
 
 -define(SUPPORTED_COMMON_TAGS, [
@@ -169,7 +170,8 @@ code_change(_OldVsn, State, _Extra) ->
 
 -spec collect(pid(), atom()) -> term().
 collect(Pid, Metrics) ->
-  erlang:apply(metrics_collector, Metrics, [Pid]).
+  ReplacedMetrics = replace_metrics_prefix(Metrics),
+  erlang:apply(metrics_collector, ReplacedMetrics, [Pid]).
 
 collect_tags(Pid, CommonTagList) ->
   lists:map(fun(Label) ->
@@ -211,3 +213,13 @@ validate_params(#{ metrics_list := MetricsList, common_tag_list := CommonTagList
         CommonTag =:= Supported
                 end, ?SUPPORTED_COMMON_TAGS)
               end, CommonTagList).
+
+
+%% -----------------------------------------------------------------------------
+%% @doc This function replace metrics name to it without prefix; currently,
+%% 'garbage_collection' only, dogstatsd_sender supports as the function to get
+%% metrics is called by apply.
+%% @end
+%% -----------------------------------------------------------------------------
+replace_metrics_prefix(Metrics) ->
+  list_to_atom(re:replace(atom_to_list(Metrics), "garbage_collection\.", "", [{return, list}])).
